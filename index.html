@@ -1,0 +1,21 @@
+<button onclick="startScan()">Start Scan</button>
+<div id="reader" style="width:300px"></div>
+
+<script>
+let scanner;
+
+function startScan() {
+  scanner = new Html5Qrcode("reader");
+
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (code) => {
+      scanner.stop();
+      window.location.href =
+        "shortcuts://run-shortcut?name=ReceiveBarcode&input=" +
+        encodeURIComponent(code);
+    }
+  );
+}
+</script>
