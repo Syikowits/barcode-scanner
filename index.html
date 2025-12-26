@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Return Scanner</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -45,18 +45,18 @@ th,td{border-bottom:1px solid #333;padding:8px;text-align:left}
 </table>
 
 <script>
-/* ==========================
+/* =======================
    DATA
-========================== */
+======================= */
 let data = [
   { name:"Ali",   b1:"ALI123",  b2:"ALI999", hit1:false, hit2:false },
   { name:"Siti",  b1:"SITI111", b2:"",       hit1:false, hit2:false },
   { name:"Kumar", b1:"",        b2:"KMR888", hit1:false, hit2:false }
 ];
 
-/* ==========================
-   LOGIC
-========================== */
+/* =======================
+   RETURN LOGIC
+======================= */
 function isReturned(r){
   return (
     (r.b1 && r.hit1 && r.b2 && r.hit2) ||
@@ -65,39 +65,77 @@ function isReturned(r){
   );
 }
 
+/* =======================
+   UI
+======================= */
 function render(){
   const tbody = document.getElementById("list");
   tbody.innerHTML = "";
 
   data.forEach(r=>{
-    const tr = document.createElement("tr");
-
-    tr.innerHTML = `
-      <td>${r.name}</td>
-      <td>${r.b1 || "-"} ${r.hit1 ? "<span class='tick'>✔</span>" : ""}</td>
-      <td>${r.b2 || "-"} ${r.hit2 ? "<span class='tick'>✔</span>" : ""}</td>
-      <td>
-        <span class="badge ${isReturned(r) ? "ok" : "wait"}">
-          ${isReturned(r) ? "RETURNED" : "WAITING"}
-        </span>
-      </td>
-    `;
-    tbody.appendChild(tr);
+    tbody.innerHTML += `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.b1 || "-"} ${r.hit1 ? "<span class='tick'>✔</span>" : ""}</td>
+        <td>${r.b2 || "-"} ${r.hit2 ? "<span class='tick'>✔</span>" : ""}</td>
+        <td>
+          <span class="badge ${isReturned(r) ? "ok" : "wait"}">
+            ${isReturned(r) ? "RETURNED" : "WAITING"}
+          </span>
+        </td>
+      </tr>`;
   });
 }
 
+/* =======================
+   BEEP + VIBRATION
+======================= */
+function successFeedback(){
+  // Beep
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.value = 880;
+  gain.gain.value = 0.15;
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start();
+  setTimeout(() => {
+    osc.stop();
+    ctx.close();
+  }, 120);
+
+  // Vibrate
+  if (navigator.vibrate) {
+    navigator.vibrate(150);
+  }
+}
+
+/* =======================
+   BARCODE HANDLER
+======================= */
 function process(code){
   code = code.trim();
   let found = false;
 
   data.forEach(r=>{
-    if(r.b1 && r.b1 === code){
+    if(r.b1 && r.b1 === code && !r.hit1){
       r.hit1 = true;
       found = true;
     }
-    if(r.b2 && r.b2 === code){
+
+    if(r.b2 && r.b2 === code && !r.hit2){
       r.hit2 = true;
       found = true;
+    }
+
+    if(isReturned(r) && !r._done){
+      r._done = true;
+      successFeedback();
     }
   });
 
@@ -108,9 +146,9 @@ function process(code){
   }
 }
 
-/* ==========================
+/* =======================
    MANUAL INPUT
-========================== */
+======================= */
 document.getElementById("manual").addEventListener("keydown", e=>{
   if(e.key === "Enter"){
     process(e.target.value);
@@ -118,25 +156,25 @@ document.getElementById("manual").addEventListener("keydown", e=>{
   }
 });
 
-/* ==========================
+/* =======================
    CAMERA
-========================== */
+======================= */
 let scanner;
 
 function startScanner(){
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
-    { facingMode: "environment" },   // iPhone safe
+    { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
     txt => process(txt),
     err => {}
   );
 }
 
-/* ==========================
+/* =======================
    INIT
-========================== */
+======================= */
 render();
 </script>
 
