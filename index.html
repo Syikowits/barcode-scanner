@@ -1,681 +1,127 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Returns Scanner</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Return Scanner</title>
 
-  <!-- Camera barcode scanner library -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-  <style>
-    :root{
-      --bg:#0b0f14; --card:#121924; --muted:#8aa0b6; --text:#e8f0f8;
-      --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --line:#223044;
-      --btn:#1f2a3a; --btn2:#223a5a;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#070a0f, #0b0f14);color:var(--text);font-family:var(--sans);}
-    header{padding:16px 16px 10px; position:sticky; top:0; background:rgba(11,15,20,.88); backdrop-filter: blur(10px); border-bottom:1px solid rgba(34,48,68,.6); z-index:10;}
-    header h1{margin:0;font-size:18px;letter-spacing:.2px}
-    header .sub{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.35}
-    main{padding:14px 14px 28px; max-width:1100px; margin:0 auto;}
-
-    .grid{display:grid; grid-template-columns: 390px 1fr; gap:14px; align-items:start;}
-    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
-
-    .card{background:rgba(18,25,36,.92); border:1px solid rgba(34,48,68,.8); border-radius:14px; overflow:hidden;}
-    .card .hd{padding:12px 12px 10px; border-bottom:1px solid rgba(34,48,68,.6); display:flex; gap:10px; align-items:center; justify-content:space-between;}
-    .card .hd .title{font-weight:700; font-size:13px; letter-spacing:.2px}
-    .card .bd{padding:12px}
-
-    .btn{appearance:none; border:1px solid rgba(138,160,182,.28); background:var(--btn); color:var(--text);
-      padding:9px 10px; border-radius:10px; cursor:pointer; font-size:12px;}
-    .btn:hover{border-color: rgba(138,160,182,.45)}
-    .btn.primary{background:var(--btn2); border-color: rgba(138,160,182,.35)}
-    .btn.danger{background:rgba(239,68,68,.12); border-color: rgba(239,68,68,.35)}
-    .btn.ok{background:rgba(34,197,94,.12); border-color: rgba(34,197,94,.35)}
-    .row{display:flex; gap:10px; flex-wrap:wrap}
-    .row > *{flex:1}
-
-    label{display:block; font-size:11px; color:var(--muted); margin:0 0 6px}
-    input[type="text"], textarea{
-      width:100%; padding:10px 10px; border-radius:10px; border:1px solid rgba(138,160,182,.22);
-      background:rgba(9,12,18,.65); color:var(--text); outline:none;
-      font-family:var(--sans); font-size:13px;
-    }
-    textarea{min-height:110px; font-family:var(--mono); font-size:12px; line-height:1.35}
-    .hint{color:var(--muted); font-size:11px; line-height:1.35; margin-top:8px}
-    .mono{font-family:var(--mono)}
-    .pill{display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:6px 8px; border-radius:999px; border:1px solid rgba(138,160,182,.25); color:var(--muted)}
-    .pill.ok{border-color: rgba(34,197,94,.45); color:#bbf7d0}
-    .pill.bad{border-color: rgba(239,68,68,.45); color:#fecaca}
-    .pill.warn{border-color: rgba(245,158,11,.55); color:#fde68a}
-
-    /* Scanner */
-    #readerWrap{display:grid; gap:10px}
-    #reader{width:100%; border-radius:12px; overflow:hidden; border:1px solid rgba(34,48,68,.8); background:#000}
-    .scannerControls{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-    .scannerControls .left{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .scannerControls .right{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    select{
-      padding:9px 10px; border-radius:10px; border:1px solid rgba(138,160,182,.22);
-      background:rgba(9,12,18,.65); color:var(--text); outline:none; font-size:12px;
-    }
-
-    /* Table */
-    table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px}
-    thead th{
-      text-align:left; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.2px;
-      padding:10px 10px; border-bottom:1px solid rgba(34,48,68,.75); position:sticky; top:0; background:rgba(18,25,36,.92);
-      z-index:5;
-    }
-    tbody td{padding:10px 10px; border-bottom:1px solid rgba(34,48,68,.35); vertical-align:top}
-    tbody tr:hover{background:rgba(255,255,255,.02)}
-    .status{display:inline-flex; align-items:center; gap:8px; font-size:12px}
-    .dot{width:10px; height:10px; border-radius:50%}
-    .dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)} .dot.warn{background:var(--warn)}
-    .small{font-size:11px; color:var(--muted)}
-    .actions{display:flex; gap:8px; flex-wrap:wrap}
-    .check{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:7px 10px; border-radius:999px; border:1px solid rgba(138,160,182,.22);
-      background:rgba(9,12,18,.35); cursor:pointer; user-select:none;
-      font-size:12px;
-    }
-    .check input{display:none}
-    .check .box{
-      width:14px; height:14px; border-radius:4px; border:1px solid rgba(138,160,182,.4); display:inline-block;
-      background:rgba(0,0,0,.2);
-    }
-    .check.checked{border-color: rgba(34,197,94,.45); background:rgba(34,197,94,.08)}
-    .check.checked .box{background:rgba(34,197,94,.8); border-color: rgba(34,197,94,.8)}
-    .toast{
-      position:fixed; left:50%; transform:translateX(-50%);
-      bottom:16px; background:rgba(18,25,36,.94); border:1px solid rgba(34,48,68,.8);
-      padding:10px 12px; border-radius:12px; display:none; gap:8px; align-items:flex-start; max-width:min(740px,92vw);
-      box-shadow: 0 10px 35px rgba(0,0,0,.45);
-      z-index:50;
-    }
-    .toast.show{display:flex}
-    .toast .msg{font-size:12px; line-height:1.35}
-    .toast .x{margin-left:auto; cursor:pointer; color:var(--muted); font-size:12px}
-    .kbd{font-family:var(--mono); font-size:11px; border:1px solid rgba(138,160,182,.25); padding:2px 6px; border-radius:8px; color:var(--muted)}
-    .log{
-      max-height:200px; overflow:auto; border:1px solid rgba(34,48,68,.6); border-radius:12px; padding:10px;
-      background:rgba(9,12,18,.35); font-family:var(--mono); font-size:11px; color:#cfe3f7;
-    }
-    .logLine{margin:0 0 6px}
-    .logLine:last-child{margin:0}
-  </style>
+<style>
+body{font-family:sans-serif;background:#0b0f14;color:#e8f0f8;margin:0;padding:12px}
+h2{margin-top:0}
+button{padding:8px 12px;border-radius:8px;border:none;background:#1f3a5f;color:white}
+input{padding:8px;border-radius:6px;border:1px solid #333;width:100%}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{border-bottom:1px solid #333;padding:8px;text-align:left}
+.tick{color:#22c55e;font-weight:bold}
+.cross{color:#ef4444}
+.badge{padding:4px 8px;border-radius:8px;font-size:12px}
+.ok{background:#134e2f}
+.wait{background:#5b3a00}
+#reader{width:100%;max-width:360px;margin:10px 0}
+</style>
 </head>
 
 <body>
-  <header>
-    <h1>Returns Scanner</h1>
-    <div class="sub">
-      Scan a barcode (camera always visible). If it matches <span class="kbd">Barcode 1</span> or <span class="kbd">Barcode 2</span>, the row is marked <b>Returned</b>.
-      Data is saved in your browser (localStorage).
-    </div>
-  </header>
 
-  <main>
-    <div class="grid">
-      <!-- LEFT: Scanner + Controls -->
-      <section class="card">
-        <div class="hd">
-          <div class="title">Scanner</div>
-          <div id="scanState" class="pill warn">Initializing…</div>
-        </div>
-        <div class="bd" id="readerWrap">
-          <div class="scannerControls">
-            <div class="left">
-              <button class="btn primary" id="btnStart">Start</button>
-              <button class="btn" id="btnStop">Stop</button>
-              <select id="cameraSelect" title="Select camera"></select>
-            </div>
-            <div class="right">
-              <span class="pill" id="lastScanPill">Last: <span class="mono" id="lastScan">—</span></span>
-            </div>
-          </div>
+<h2>Return Scanner</h2>
 
-          <div id="reader"></div>
+<button onclick="startScanner()">▶ Start Camera</button>
 
-          <div class="row">
-            <div>
-              <label>Manual barcode input (if camera can’t scan)</label>
-              <input id="manualBarcode" type="text" placeholder="Paste / type barcode and press Enter" />
-              <div class="hint">Tip: press <span class="kbd">Enter</span> to submit.</div>
-            </div>
-          </div>
+<div id="reader"></div>
 
-          <div class="row">
-            <div>
-              <label>Search list</label>
-              <input id="searchBox" type="text" placeholder="Search name or barcode…" />
-            </div>
-          </div>
+<input id="manual" placeholder="Manual barcode input" />
 
-          <div class="row">
-            <button class="btn ok" id="btnExport">Export JSON</button>
-            <button class="btn" id="btnImport">Import JSON</button>
-            <button class="btn danger" id="btnResetReturned">Reset Returned</button>
-          </div>
+<table>
+<thead>
+<tr>
+  <th>Name</th>
+  <th>Barcode 1</th>
+  <th>Barcode 2</th>
+  <th>Status</th>
+</tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
 
-          <div>
-            <label>Scan log</label>
-            <div class="log" id="log"></div>
-          </div>
+<script>
+let data = [
+  {name:"Ali", b1:"ALI123", b2:"ALI999", hit1:false, hit2:false},
+  {name:"Siti", b1:"SITI111", b2:"", hit1:false, hit2:false},
+  {name:"Kumar", b1:"", b2:"KMR888", hit1:false, hit2:false}
+];
 
-          <details>
-            <summary class="hint">Edit your list (CSV paste)</summary>
-            <div style="margin-top:10px">
-              <label>Paste CSV: <span class="mono">Name,Barcode1,Barcode2</span> (one per line)</label>
-              <textarea id="csvArea" spellcheck="false"></textarea>
-              <div class="row" style="margin-top:10px">
-                <button class="btn primary" id="btnLoadCsv">Load/Replace List</button>
-                <button class="btn" id="btnSample">Load Sample</button>
-              </div>
-              <div class="hint">
-                Example line: <span class="mono">Ali,ABC123,XYZ999</span> (Barcode2 can be blank).
-              </div>
-            </div>
-          </details>
-        </div>
-      </section>
+function isReturned(r){
+  return (
+    (r.b1 && r.hit1 && r.b2 && r.hit2) ||
+    (r.b1 && r.hit1 && !r.b2) ||
+    (!r.b1 && r.b2 && r.hit2)
+  );
+}
 
-      <!-- RIGHT: Table -->
-      <section class="card">
-        <div class="hd">
-          <div class="title">People & Barcodes</div>
-          <div class="row" style="justify-content:flex-end; gap:8px; margin:0">
-            <span class="pill">Total: <span id="countTotal" class="mono">0</span></span>
-            <span class="pill ok">Returned: <span id="countReturned" class="mono">0</span></span>
-            <span class="pill warn">Pending: <span id="countPending" class="mono">0</span></span>
-          </div>
-        </div>
-        <div class="bd" style="padding:0">
-          <div style="max-height: 70vh; overflow:auto">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:26%">Name</th>
-                  <th style="width:22%">Barcode 1</th>
-                  <th style="width:22%">Barcode 2</th>
-                  <th style="width:16%">Returned</th>
-                  <th style="width:14%">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    </div>
-  </main>
+function render(){
+  const tb = document.getElementById("list");
+  tb.innerHTML = "";
+  data.forEach(r=>{
+    const tr = document.createElement("tr");
 
-  <div class="toast" id="toast">
-    <div class="dot" id="toastDot"></div>
-    <div class="msg" id="toastMsg"></div>
-    <div class="x" id="toastX">✕</div>
-  </div>
+    const s1 = r.hit1 ? "✔" : "—";
+    const s2 = r.hit2 ? "✔" : "—";
 
-  <script>
-    /***********************
-     * Data model + storage
-     ***********************/
-    const STORAGE_KEY = "returns_scanner_v1";
+    tr.innerHTML = `
+      <td>${r.name}</td>
+      <td>${r.b1 || "-"} ${r.hit1?'<span class="tick">✔</span>':''}</td>
+      <td>${r.b2 || "-"} ${r.hit2?'<span class="tick">✔</span>':''}</td>
+      <td>
+        <span class="badge ${isReturned(r)?'ok':'wait'}">
+          ${isReturned(r) ? "RETURNED" : "WAITING"}
+        </span>
+      </td>
+    `;
+    tb.appendChild(tr);
+  });
+}
 
-    /** @type {{id:string,name:string,bc1:string,bc2:string,returned:boolean,returnedAt?:string}[]} */
-    let rows = [];
+function process(code){
+  code = code.trim();
+  let matched = false;
 
-    function uid() {
-      return Math.random().toString(16).slice(2) + Date.now().toString(16);
+  data.forEach(r=>{
+    if(r.b1 && r.b1 === code){
+      r.hit1 = true;
+      matched = true;
     }
-
-    function loadData() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            rows = parsed.map(r => ({
-              id: String(r.id || uid()),
-              name: String(r.name || ""),
-              bc1: String(r.bc1 || ""),
-              bc2: String(r.bc2 || ""),
-              returned: Boolean(r.returned),
-              returnedAt: r.returnedAt ? String(r.returnedAt) : undefined
-            }));
-            return;
-          }
-        } catch {}
-      }
-      // Default empty (you can load sample via button)
-      rows = [];
+    if(r.b2 && r.b2 === code){
+      r.hit2 = true;
+      matched = true;
     }
+  });
 
-    function saveData() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-      updateCounts();
-    }
+  render();
+}
 
-    /***********************
-     * UI helpers
-     ***********************/
-    const el = (id) => document.getElementById(id);
+document.getElementById("manual").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    process(e.target.value);
+    e.target.value="";
+  }
+});
 
-    function setScanState(kind, text) {
-      const pill = el("scanState");
-      pill.className = "pill " + (kind === "ok" ? "ok" : kind === "bad" ? "bad" : "warn");
-      pill.textContent = text;
-    }
+let scanner;
+function startScanner(){
+  scanner = new Html5Qrcode("reader");
 
-    let toastTimer = null;
-    function toast(kind, html) {
-      const t = el("toast");
-      const dot = el("toastDot");
-      const msg = el("toastMsg");
-      dot.className = "dot " + (kind === "ok" ? "ok" : kind === "bad" ? "bad" : "warn");
-      msg.innerHTML = html;
-      t.classList.add("show");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => t.classList.remove("show"), 3500);
-    }
-    el("toastX").onclick = () => el("toast").classList.remove("show");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps:10, qrbox:250 },
+    txt => process(txt),
+    err => {}
+  );
+}
 
-    function logLine(text) {
-      const log = el("log");
-      const p = document.createElement("div");
-      p.className = "logLine";
-      p.textContent = text;
-      log.prepend(p);
-    }
+render();
+</script>
 
-    function normalizeCode(code) {
-      // Trim and keep as-is; you can add extra normalization if your barcodes include spaces/dashes
-      return (code || "").trim();
-    }
-
-    function escapeHtml(s) {
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    function updateCounts() {
-      const total = rows.length;
-      const returned = rows.filter(r => r.returned).length;
-      el("countTotal").textContent = String(total);
-      el("countReturned").textContent = String(returned);
-      el("countPending").textContent = String(total - returned);
-    }
-
-    /***********************
-     * Render table
-     ***********************/
-    function render() {
-      const q = el("searchBox").value.trim().toLowerCase();
-      const tbody = el("tbody");
-      tbody.innerHTML = "";
-
-      const filtered = rows.filter(r => {
-        if (!q) return true;
-        return (
-          r.name.toLowerCase().includes(q) ||
-          (r.bc1 || "").toLowerCase().includes(q) ||
-          (r.bc2 || "").toLowerCase().includes(q)
-        );
-      });
-
-      for (const r of filtered) {
-        const tr = document.createElement("tr");
-
-        const tdName = document.createElement("td");
-        tdName.innerHTML = `<div><b>${escapeHtml(r.name)}</b></div>
-          <div class="small">ID: <span class="mono">${escapeHtml(r.id.slice(0,8))}</span></div>`;
-        tr.appendChild(tdName);
-
-        const td1 = document.createElement("td");
-        td1.innerHTML = `<span class="mono">${escapeHtml(r.bc1 || "—")}</span>`;
-        tr.appendChild(td1);
-
-        const td2 = document.createElement("td");
-        td2.innerHTML = `<span class="mono">${escapeHtml(r.bc2 || "—")}</span>`;
-        tr.appendChild(td2);
-
-        const tdReturned = document.createElement("td");
-        const label = document.createElement("label");
-        label.className = "check" + (r.returned ? " checked" : "");
-        label.innerHTML = `<span class="box"></span><span>${r.returned ? "Returned" : "Pending"}</span>`;
-        label.onclick = () => {
-          r.returned = !r.returned;
-          r.returnedAt = r.returned ? new Date().toISOString() : undefined;
-          saveData();
-          render();
-        };
-        tdReturned.appendChild(label);
-        if (r.returned && r.returnedAt) {
-          const t = document.createElement("div");
-          t.className = "small";
-          const d = new Date(r.returnedAt);
-          t.textContent = "at " + d.toLocaleString();
-          tdReturned.appendChild(t);
-        }
-        tr.appendChild(tdReturned);
-
-        const tdAct = document.createElement("td");
-        const act = document.createElement("div");
-        act.className = "actions";
-
-        const btnMark = document.createElement("button");
-        btnMark.className = "btn ok";
-        btnMark.textContent = "Mark Returned";
-        btnMark.onclick = () => {
-          r.returned = true;
-          r.returnedAt = new Date().toISOString();
-          saveData();
-          render();
-          toast("ok", `Manually marked <b>${escapeHtml(r.name)}</b> as returned.`);
-          logLine(`[MANUAL] ${r.name} marked returned`);
-        };
-
-        const btnClear = document.createElement("button");
-        btnClear.className = "btn";
-        btnClear.textContent = "Clear";
-        btnClear.onclick = () => {
-          r.returned = false;
-          r.returnedAt = undefined;
-          saveData();
-          render();
-          toast("warn", `Cleared return for <b>${escapeHtml(r.name)}</b>.`);
-          logLine(`[CLEAR] ${r.name} set to pending`);
-        };
-
-        act.appendChild(btnMark);
-        act.appendChild(btnClear);
-        tdAct.appendChild(act);
-        tr.appendChild(tdAct);
-
-        tbody.appendChild(tr);
-      }
-
-      updateCounts();
-    }
-
-    /***********************
-     * Matching + scanning
-     ***********************/
-    function findMatch(code) {
-      const c = normalizeCode(code);
-      if (!c) return null;
-
-      // Exact match against either barcode column
-      for (const r of rows) {
-        if (normalizeCode(r.bc1) === c || normalizeCode(r.bc2) === c) {
-          return r;
-        }
-      }
-      return null;
-    }
-
-    function handleScanned(code, source = "SCAN") {
-      const c = normalizeCode(code);
-      if (!c) return;
-
-      el("lastScan").textContent = c;
-
-      const now = new Date().toLocaleString();
-      const r = findMatch(c);
-
-      if (!r) {
-        toast("bad", `No match for <span class="mono">${escapeHtml(c)}</span>`);
-        logLine(`[${source}] ${now} - NO MATCH - ${c}`);
-        return;
-      }
-
-      if (r.returned) {
-        toast("warn", `Already returned: <b>${escapeHtml(r.name)}</b>`);
-        logLine(`[${source}] ${now} - ALREADY RETURNED - ${r.name} (${c})`);
-        return;
-      }
-
-      r.returned = true;
-      r.returnedAt = new Date().toISOString();
-      saveData();
-      render();
-
-      toast("ok", `Marked returned: <b>${escapeHtml(r.name)}</b>`);
-      logLine(`[${source}] ${now} - RETURNED - ${r.name} (${c})`);
-    }
-
-    /***********************
-     * CSV import / export
-     ***********************/
-    function parseCSV(text) {
-      // Simple CSV parser for Name,Barcode1,Barcode2
-      // Supports commas inside quotes minimally.
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      const out = [];
-      for (const line of lines) {
-        const parts = [];
-        let cur = "", inQ = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"' ) { inQ = !inQ; continue; }
-          if (ch === "," && !inQ) { parts.push(cur); cur = ""; continue; }
-          cur += ch;
-        }
-        parts.push(cur);
-        const [name, bc1, bc2] = parts.map(s => (s ?? "").trim());
-        if (!name && !bc1 && !bc2) continue;
-        out.push({ id: uid(), name, bc1, bc2, returned:false });
-      }
-      return out;
-    }
-
-    function download(filename, text) {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    }
-
-    /***********************
-     * Scanner setup
-     ***********************/
-    let html5Qr = null;
-    let scanning = false;
-    let lastDecoded = "";
-    let lastDecodedAt = 0;
-
-    async function listCameras() {
-      // Must be https + user interaction to get full list on some browsers
-      const devices = await Html5Qrcode.getCameras();
-      const sel = el("cameraSelect");
-      sel.innerHTML = "";
-      for (const d of devices) {
-        const opt = document.createElement("option");
-        opt.value = d.id;
-        opt.textContent = d.label || `Camera ${sel.length + 1}`;
-        sel.appendChild(opt);
-      }
-      return devices;
-    }
-
-    async function startScanner() {
-      if (scanning) return;
-      if (!html5Qr) html5Qr = new Html5Qrcode("reader");
-
-      try {
-        setScanState("warn", "Requesting camera…");
-        const devices = await listCameras();
-        if (!devices.length) {
-          setScanState("bad", "No camera found");
-          toast("bad", "No camera detected on this device.");
-          return;
-        }
-        const camId = el("cameraSelect").value || devices[0].id;
-
-        scanning = true;
-        setScanState("warn", "Starting…");
-
-        await html5Qr.start(
-          { deviceId: { exact: camId } },
-          {
-            fps: 10,
-            qrbox: { width: 260, height: 180 },
-            disableFlip: true
-          },
-          (decodedText) => {
-            // Debounce duplicates (same barcode repeatedly)
-            const now = Date.now();
-            if (decodedText === lastDecoded && (now - lastDecodedAt) < 1800) return;
-            lastDecoded = decodedText;
-            lastDecodedAt = now;
-            handleScanned(decodedText, "SCAN");
-          },
-          () => { /* ignore scan errors to keep live */ }
-        );
-
-        setScanState("ok", "Scanning");
-      } catch (err) {
-        scanning = false;
-        setScanState("bad", "Camera blocked");
-        toast("bad", `Camera error. Make sure the site is HTTPS and allow camera permission.`);
-        console.error(err);
-      }
-    }
-
-    async function stopScanner() {
-      if (!html5Qr || !scanning) return;
-      try {
-        await html5Qr.stop();
-      } catch {}
-      scanning = false;
-      setScanState("warn", "Stopped");
-    }
-
-    /***********************
-     * Wire up UI
-     ***********************/
-    function loadSample() {
-      rows = [
-        { id: uid(), name: "Ali",   bc1: "ALI-001", bc2: "ALI-ALT-9", returned:false },
-        { id: uid(), name: "Siti",  bc1: "SITI-777", bc2: "", returned:false },
-        { id: uid(), name: "Kumar", bc1: "KMR-12345", bc2: "KMR-BC2", returned:false }
-      ];
-      saveData();
-      render();
-      el("csvArea").value = rows.map(r => `${r.name},${r.bc1},${r.bc2}`).join("\n");
-      toast("ok", "Loaded sample list.");
-    }
-
-    // Buttons
-    el("btnStart").onclick = () => startScanner();
-    el("btnStop").onclick = () => stopScanner();
-
-    el("cameraSelect").onchange = async () => {
-      // Restart scanner using new camera if scanning
-      if (scanning) {
-        await stopScanner();
-        await startScanner();
-      }
-    };
-
-    el("manualBarcode").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const v = el("manualBarcode").value;
-        el("manualBarcode").value = "";
-        handleScanned(v, "MANUAL");
-      }
-    });
-
-    el("searchBox").addEventListener("input", () => render());
-
-    el("btnExport").onclick = () => {
-      download("returns-data.json", JSON.stringify(rows, null, 2));
-      toast("ok", "Exported returns-data.json");
-    };
-
-    el("btnImport").onclick = async () => {
-      const inp = document.createElement("input");
-      inp.type = "file";
-      inp.accept = "application/json";
-      inp.onchange = async () => {
-        const file = inp.files?.[0];
-        if (!file) return;
-        const text = await file.text();
-        try {
-          const parsed = JSON.parse(text);
-          if (!Array.isArray(parsed)) throw new Error("Not an array");
-          rows = parsed.map(r => ({
-            id: String(r.id || uid()),
-            name: String(r.name || ""),
-            bc1: String(r.bc1 || ""),
-            bc2: String(r.bc2 || ""),
-            returned: Boolean(r.returned),
-            returnedAt: r.returnedAt ? String(r.returnedAt) : undefined
-          }));
-          saveData();
-          render();
-          toast("ok", "Imported JSON successfully.");
-        } catch (e) {
-          toast("bad", "Import failed. JSON must be an array of rows.");
-        }
-      };
-      inp.click();
-    };
-
-    el("btnResetReturned").onclick = () => {
-      rows.forEach(r => { r.returned = false; r.returnedAt = undefined; });
-      saveData();
-      render();
-      toast("warn", "All returns reset to Pending.");
-      logLine(`[RESET] All set to pending`);
-    };
-
-    el("btnLoadCsv").onclick = () => {
-      const text = el("csvArea").value;
-      const parsed = parseCSV(text);
-      rows = parsed;
-      saveData();
-      render();
-      toast("ok", `Loaded ${rows.length} rows from CSV.`);
-      logLine(`[CSV] Loaded ${rows.length} rows`);
-    };
-
-    el("btnSample").onclick = () => loadSample();
-
-    /***********************
-     * Init
-     ***********************/
-    (async function init() {
-      loadData();
-      render();
-
-      // Put current rows into CSV area if any
-      if (rows.length) {
-        el("csvArea").value = rows.map(r => `${r.name},${r.bc1},${r.bc2}`).join("\n");
-      } else {
-        el("csvArea").value = `Name,Barcode1,Barcode2\n`;
-      }
-
-      // Try to pre-list cameras; if blocked, user can press Start
-      try {
-        await listCameras();
-        setScanState("warn", "Ready (press Start)");
-      } catch {
-        setScanState("warn", "Press Start to enable camera");
-      }
-
-      // Optional: auto-start scanner (comment out if you prefer manual start)
-      // startScanner();
-    })();
-  </script>
 </body>
 </html>
