@@ -1,37 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Return Scanner</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body{font-family:sans-serif;background:#0b0f14;color:#e8f0f8;margin:0;padding:12px}
+body{font-family:system-ui;background:#0b0f14;color:#e8f0f8;padding:12px}
 h2{margin-top:0}
-button{padding:8px 12px;border-radius:8px;border:none;background:#1f3a5f;color:white}
+button{padding:8px 14px;border-radius:8px;border:none;background:#1f3a5f;color:#fff}
 input{padding:8px;border-radius:6px;border:1px solid #333;width:100%}
 table{width:100%;border-collapse:collapse;margin-top:12px}
 th,td{border-bottom:1px solid #333;padding:8px;text-align:left}
 .tick{color:#22c55e;font-weight:bold}
-.cross{color:#ef4444}
 .badge{padding:4px 8px;border-radius:8px;font-size:12px}
 .ok{background:#134e2f}
 .wait{background:#5b3a00}
-#reader{width:100%;max-width:360px;margin:10px 0}
+#reader{width:100%;max-width:360px;margin:12px 0}
 </style>
 </head>
 
 <body>
 
-<h2>Return Scanner</h2>
+<h2>📦 Return Scanner</h2>
 
 <button onclick="startScanner()">▶ Start Camera</button>
 
 <div id="reader"></div>
 
-<input id="manual" placeholder="Manual barcode input" />
+<input id="manual" placeholder="Manual barcode input (press Enter)" />
 
 <table>
 <thead>
@@ -46,12 +45,18 @@ th,td{border-bottom:1px solid #333;padding:8px;text-align:left}
 </table>
 
 <script>
+/* ==========================
+   DATA
+========================== */
 let data = [
-  {name:"Ali", b1:"ALI123", b2:"ALI999", hit1:false, hit2:false},
-  {name:"Siti", b1:"SITI111", b2:"", hit1:false, hit2:false},
-  {name:"Kumar", b1:"", b2:"KMR888", hit1:false, hit2:false}
+  { name:"Ali",   b1:"ALI123",  b2:"ALI999", hit1:false, hit2:false },
+  { name:"Siti",  b1:"SITI111", b2:"",       hit1:false, hit2:false },
+  { name:"Kumar", b1:"",        b2:"KMR888", hit1:false, hit2:false }
 ];
 
+/* ==========================
+   LOGIC
+========================== */
 function isReturned(r){
   return (
     (r.b1 && r.hit1 && r.b2 && r.hit2) ||
@@ -61,65 +66,77 @@ function isReturned(r){
 }
 
 function render(){
-  const tb = document.getElementById("list");
-  tb.innerHTML = "";
+  const tbody = document.getElementById("list");
+  tbody.innerHTML = "";
+
   data.forEach(r=>{
     const tr = document.createElement("tr");
 
-    const s1 = r.hit1 ? "✔" : "—";
-    const s2 = r.hit2 ? "✔" : "—";
-
     tr.innerHTML = `
       <td>${r.name}</td>
-      <td>${r.b1 || "-"} ${r.hit1?'<span class="tick">✔</span>':''}</td>
-      <td>${r.b2 || "-"} ${r.hit2?'<span class="tick">✔</span>':''}</td>
+      <td>${r.b1 || "-"} ${r.hit1 ? "<span class='tick'>✔</span>" : ""}</td>
+      <td>${r.b2 || "-"} ${r.hit2 ? "<span class='tick'>✔</span>" : ""}</td>
       <td>
-        <span class="badge ${isReturned(r)?'ok':'wait'}">
+        <span class="badge ${isReturned(r) ? "ok" : "wait"}">
           ${isReturned(r) ? "RETURNED" : "WAITING"}
         </span>
       </td>
     `;
-    tb.appendChild(tr);
+    tbody.appendChild(tr);
   });
 }
 
 function process(code){
   code = code.trim();
-  let matched = false;
+  let found = false;
 
   data.forEach(r=>{
     if(r.b1 && r.b1 === code){
       r.hit1 = true;
-      matched = true;
+      found = true;
     }
     if(r.b2 && r.b2 === code){
       r.hit2 = true;
-      matched = true;
+      found = true;
     }
   });
 
   render();
+
+  if(!found){
+    alert("❌ Barcode not found:\n" + code);
+  }
 }
 
+/* ==========================
+   MANUAL INPUT
+========================== */
 document.getElementById("manual").addEventListener("keydown", e=>{
-  if(e.key==="Enter"){
+  if(e.key === "Enter"){
     process(e.target.value);
-    e.target.value="";
+    e.target.value = "";
   }
 });
 
+/* ==========================
+   CAMERA
+========================== */
 let scanner;
+
 function startScanner(){
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
-    { facingMode: "environment" },
-    { fps:10, qrbox:250 },
+    { facingMode: "environment" },   // iPhone safe
+    { fps: 10, qrbox: 250 },
     txt => process(txt),
     err => {}
   );
 }
 
+/* ==========================
+   INIT
+========================== */
 render();
 </script>
 
