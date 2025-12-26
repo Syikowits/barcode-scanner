@@ -1,182 +1,268 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Return Scanner</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Chat</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b141a; color:#e9edef; }
+    .app { max-width: 760px; margin: 0 auto; height: 100vh; display:flex; flex-direction: column; }
+    .topbar { padding: 12px 14px; background:#111b21; display:flex; gap:10px; align-items:center; border-bottom: 1px solid #1f2c33;}
+    .dot { width:10px; height:10px; border-radius:50%; background:#2dd36f; }
+    .title { font-weight: 650; }
+    .sub { font-size: 12px; opacity: .75; }
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+    .chat { flex:1; overflow:auto; padding: 14px; background: #0b141a; }
+    .msgrow { display:flex; margin: 6px 0; }
+    .msgrow.me { justify-content: flex-end; }
+    .bubble { max-width: 78%; padding: 10px 10px 7px; border-radius: 14px; line-height:1.25; position: relative; }
+    .me .bubble { background:#005c4b; border-top-right-radius: 6px; }
+    .other .bubble { background:#1f2c33; border-top-left-radius: 6px; }
 
-<style>
-body{font-family:system-ui;background:#0b0f14;color:#e8f0f8;padding:12px}
-h2{margin-top:0}
-button{padding:8px 14px;border-radius:8px;border:none;background:#1f3a5f;color:#fff}
-input{padding:8px;border-radius:6px;border:1px solid #333;width:100%}
-table{width:100%;border-collapse:collapse;margin-top:12px}
-th,td{border-bottom:1px solid #333;padding:8px;text-align:left}
-.tick{color:#22c55e;font-weight:bold}
-.badge{padding:4px 8px;border-radius:8px;font-size:12px}
-.ok{background:#134e2f}
-.wait{background:#5b3a00}
-#reader{width:100%;max-width:360px;margin:12px 0}
-</style>
+    .meta { margin-top: 6px; font-size: 11px; opacity: .75; display:flex; gap: 8px; justify-content: flex-end; }
+    .other .meta { justify-content: space-between; }
+    .user { font-weight: 650; opacity:.9; }
+    .sys { opacity:.7; font-size: 12px; text-align:center; margin: 10px 0; }
+
+    .composer { padding: 10px; background:#111b21; border-top: 1px solid #1f2c33; display:flex; gap:10px; }
+    input, button { border:0; outline: none; }
+    #msg { flex:1; background:#1f2c33; color:#e9edef; border-radius: 999px; padding: 12px 14px; }
+    button { background:#2dd36f; color:#031b12; padding: 10px 14px; border-radius: 999px; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+
+    .login { padding: 10px 14px; background:#0b141a; border-bottom:1px solid #1f2c33; display:flex; gap:10px; flex-wrap: wrap; }
+    .login input { background:#1f2c33; color:#e9edef; border-radius: 999px; padding: 10px 12px; }
+    #status { font-size: 12px; opacity:.8; padding: 8px 14px; background:#0b141a; border-bottom:1px solid #1f2c33; }
+  </style>
 </head>
-
 <body>
+  <div class="app">
+    <div class="topbar">
+      <div class="dot"></div>
+      <div>
+        <div class="title">Live Chat</div>
+        <div class="sub">GitHub Pages + Google Sheets</div>
+      </div>
+    </div>
 
-<h2>📦 Return Scanner</h2>
+    <div class="login">
+      <input id="user" placeholder="User ID (e.g. iskandar)" maxlength="30">
+      <input id="pw" placeholder="Chat Password" type="password">
+      <input id="room" placeholder="Room (default: main)" value="main" maxlength="20">
+      <button id="save">Save</button>
+    </div>
 
-<button onclick="startScanner()">▶ Start Camera</button>
+    <div id="status">Not connected yet.</div>
 
-<div id="reader"></div>
+    <div id="chat" class="chat"></div>
 
-<input id="manual" placeholder="Manual barcode input (press Enter)" />
-
-<table>
-<thead>
-<tr>
-  <th>Name</th>
-  <th>Barcode 1</th>
-  <th>Barcode 2</th>
-  <th>Status</th>
-</tr>
-</thead>
-<tbody id="list"></tbody>
-</table>
+    <div class="composer">
+      <input id="msg" placeholder="Type a message…" autocomplete="off">
+      <button id="send">Send</button>
+    </div>
+  </div>
 
 <script>
-/* =======================
-   DATA
-======================= */
-let data = [
-  { name:"Ali",   b1:"ALI123",  b2:"ALI999", hit1:false, hit2:false },
-  { name:"Siti",  b1:"SITI111", b2:"",       hit1:false, hit2:false },
-  { name:"Kumar", b1:"",        b2:"KMR888", hit1:false, hit2:false }
-];
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztQ8U_u7daQ5Uy84-Xad_ddzHNwJ1SHteoyniNH1iieMkIjjcEHgsGGf2uA6pObokLwQ/exec";
 
-/* =======================
-   RETURN LOGIC
-======================= */
-function isReturned(r){
-  return (
-    (r.b1 && r.hit1 && r.b2 && r.hit2) ||
-    (r.b1 && r.hit1 && !r.b2) ||
-    (!r.b1 && r.b2 && r.hit2)
-  );
-}
+  const elChat = document.getElementById("chat");
+  const elMsg = document.getElementById("msg");
+  const elUser = document.getElementById("user");
+  const elPw = document.getElementById("pw");
+  const elRoom = document.getElementById("room");
+  const elStatus = document.getElementById("status");
+  const elSend = document.getElementById("send");
+  const elSave = document.getElementById("save");
 
-/* =======================
-   UI
-======================= */
-function render(){
-  const tbody = document.getElementById("list");
-  tbody.innerHTML = "";
+  let state = {
+    user: localStorage.getItem("chat_user") || "",
+    pw: localStorage.getItem("chat_pw") || "",
+    room: localStorage.getItem("chat_room") || "main",
+    after: 0,
+    polling: null,
+    lastRenderTs: 0
+  };
 
-  data.forEach(r=>{
-    tbody.innerHTML += `
-      <tr>
-        <td>${r.name}</td>
-        <td>${r.b1 || "-"} ${r.hit1 ? "<span class='tick'>✔</span>" : ""}</td>
-        <td>${r.b2 || "-"} ${r.hit2 ? "<span class='tick'>✔</span>" : ""}</td>
-        <td>
-          <span class="badge ${isReturned(r) ? "ok" : "wait"}">
-            ${isReturned(r) ? "RETURNED" : "WAITING"}
-          </span>
-        </td>
-      </tr>`;
+  elUser.value = state.user;
+  elPw.value = state.pw;
+  elRoom.value = state.room;
+
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function setStatus(text) {
+    elStatus.textContent = text;
+  }
+
+  function shouldAutoScroll() {
+    const threshold = 140; // px
+    return (elChat.scrollHeight - elChat.scrollTop - elChat.clientHeight) < threshold;
+  }
+
+  function scrollToBottom() {
+    elChat.scrollTop = elChat.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  function renderMessage(m) {
+    const isMe = m.user === state.user;
+    const row = document.createElement("div");
+    row.className = "msgrow " + (isMe ? "me" : "other");
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    const msgText = document.createElement("div");
+    msgText.innerHTML = escapeHtml(m.message).replace(/\n/g, "<br>");
+    bubble.appendChild(msgText);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    if (!isMe) {
+      const userSpan = document.createElement("span");
+      userSpan.className = "user";
+      userSpan.textContent = m.user;
+      meta.appendChild(userSpan);
+    } else {
+      const spacer = document.createElement("span");
+      spacer.textContent = "";
+      meta.appendChild(spacer);
+    }
+
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = fmtTime(m.ts);
+    meta.appendChild(timeSpan);
+
+    bubble.appendChild(meta);
+    row.appendChild(bubble);
+    elChat.appendChild(row);
+  }
+
+  async function apiGetMessages() {
+    const qs = new URLSearchParams({
+      room: state.room || "main",
+      after: String(state.after || 0),
+      limit: "120",
+      pw: state.pw,
+      user: state.user
+    });
+
+    const res = await fetch(`${SCRIPT_URL}?${qs.toString()}`, { method: "GET" });
+    const data = await res.json();
+    return data;
+  }
+
+  async function apiSendMessage(text) {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        room: state.room || "main",
+        user: state.user,
+        pw: state.pw,
+        message: text
+      })
+    });
+    const data = await res.json();
+    return data;
+  }
+
+  async function poll() {
+    if (!state.user || !state.pw) {
+      setStatus("Enter User ID + Password, then Save.");
+      return;
+    }
+
+    try {
+      const auto = shouldAutoScroll();
+
+      const data = await apiGetMessages();
+      if (!data.ok) {
+        setStatus("Error: " + data.error);
+        return;
+      }
+
+      if (data.messages.length) {
+        for (const m of data.messages) {
+          renderMessage(m);
+          state.after = Math.max(state.after, m.ts);
+        }
+        if (auto) scrollToBottom();
+      }
+
+      setStatus(`Connected • Room: ${state.room} • Last: ${state.after ? fmtTime(state.after) : "—"}`);
+    } catch (e) {
+      setStatus("Network error. Check SCRIPT_URL and deployment access.");
+    }
+  }
+
+  async function send() {
+    const text = elMsg.value.trim();
+    if (!text) return;
+
+    if (!state.user || !state.pw) {
+      setStatus("Please Save User ID + Password first.");
+      return;
+    }
+
+    elSend.disabled = true;
+    try {
+      const data = await apiSendMessage(text);
+      if (!data.ok) {
+        setStatus("Send failed: " + data.error);
+      } else {
+        elMsg.value = "";
+        await poll(); // refresh quickly
+      }
+    } catch (e) {
+      setStatus("Send failed: network error.");
+    } finally {
+      elSend.disabled = false;
+      elMsg.focus();
+    }
+  }
+
+  elSave.addEventListener("click", () => {
+    state.user = elUser.value.trim();
+    state.pw = elPw.value.trim();
+    state.room = (elRoom.value.trim() || "main");
+
+    localStorage.setItem("chat_user", state.user);
+    localStorage.setItem("chat_pw", state.pw);
+    localStorage.setItem("chat_room", state.room);
+
+    elChat.innerHTML = "";
+    state.after = 0;
+
+    setStatus("Saved. Connecting…");
+    poll();
+
+    if (state.polling) clearInterval(state.polling);
+    state.polling = setInterval(poll, 2000);
   });
-}
 
-/* =======================
-   BEEP + VIBRATION
-======================= */
-function successFeedback(){
-  // Beep
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.type = "sine";
-  osc.frequency.value = 880;
-  gain.gain.value = 0.15;
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-
-  osc.start();
-  setTimeout(() => {
-    osc.stop();
-    ctx.close();
-  }, 120);
-
-  // Vibrate
-  if (navigator.vibrate) {
-    navigator.vibrate(150);
-  }
-}
-
-/* =======================
-   BARCODE HANDLER
-======================= */
-function process(code){
-  code = code.trim();
-  let found = false;
-
-  data.forEach(r=>{
-    if(r.b1 && r.b1 === code && !r.hit1){
-      r.hit1 = true;
-      found = true;
-    }
-
-    if(r.b2 && r.b2 === code && !r.hit2){
-      r.hit2 = true;
-      found = true;
-    }
-
-    if(isReturned(r) && !r._done){
-      r._done = true;
-      successFeedback();
+  elSend.addEventListener("click", send);
+  elMsg.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
     }
   });
 
-  render();
-
-  if(!found){
-    alert("❌ Barcode not found:\n" + code);
+  // auto-start polling if credentials exist
+  if (state.user && state.pw) {
+    setStatus("Connecting…");
+    poll();
+    state.polling = setInterval(poll, 2000);
+  } else {
+    setStatus("Enter User ID + Password, then Save.");
   }
-}
-
-/* =======================
-   MANUAL INPUT
-======================= */
-document.getElementById("manual").addEventListener("keydown", e=>{
-  if(e.key === "Enter"){
-    process(e.target.value);
-    e.target.value = "";
-  }
-});
-
-/* =======================
-   CAMERA
-======================= */
-let scanner;
-
-function startScanner(){
-  scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    txt => process(txt),
-    err => {}
-  );
-}
-
-/* =======================
-   INIT
-======================= */
-render();
 </script>
-
 </body>
 </html>
